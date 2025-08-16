@@ -98,6 +98,15 @@ class Rule(Base):
     response = Column(Text, nullable=False)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    username = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="viewer")
+
+
 class Audit(Base):
     __tablename__ = "audit"
 

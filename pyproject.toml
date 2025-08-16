@@ -9,6 +9,8 @@ dependencies = [
     "SQLAlchemy",
     "alembic",
     "apscheduler",
+    "python-jose[cryptography]",
+    "passlib[bcrypt]",
 ]
 
 [tool.black]
