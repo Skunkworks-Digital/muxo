@@ -93,13 +93,24 @@
     </div>
   </section>
 
-  <section id="reference">
-    <h2>Reference Architecture</h2>
-    <p style="text-align:center;max-width:40rem;margin:0 auto;color:var(--ink-dim)">Our platform connects the <strong>UI</strong>, <strong>API</strong>, and <strong>Messaging Core</strong> seamlessly with connected GSM modems. This architecture ensures scalability, reliability, and real-time communication.</p>
-    <div style="display:flex;justify-content:center;margin-top:2rem">
-      <img src="https://raw.githubusercontent.com/Skunkworks-Digital/muxo/main/reference-architecture.png" alt="MuxoSMS Reference Architecture" style="max-width:90%;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.4)">
-    </div>
-  </section>
+  <section id="arch" class="grid" aria-labelledby="arch-title">
+      <div class="arch card">
+        <div>
+          <h2 id="arch-title">Reference architecture</h2>
+          <p class="muted">A modular flow from UI → API → Messaging Core → GSM Modems. Queue workers pull jobs, apply templates, send via AT commands, and push delivery receipts back to API consumers.</p>
+          <ul>
+            <li><b>UI:</b> Dashboard + Campaign Manager</li>
+            <li><b>API Layer:</b> REST + Webhooks + Auth</li>
+            <li><b>Messaging Core:</b> Queue, Router, Templates</li>
+            <li><b>Device I/O:</b> AT control, Health checks, SIM rotation</li>
+          </ul>
+          <p class="muted">Deploy on‑prem, Docker, or edge box; export metrics via Prometheus.</p>
+        </div>
+        <div>
+          <canvas id="archCanvas" width="547" height="525" aria-label="Animated data flow diagram" style="height: 420px;"></canvas>
+        </div>
+      </div>
+   </section>
 
   <script src="https://unpkg.com/three@0.157.0/build/three.min.js"></script>
   <script>
