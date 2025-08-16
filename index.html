@@ -4,625 +4,185 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MuxoSMS • Fast, Reliable GSM + API Messaging</title>
-  <meta name="description" content="MuxoSMS: multi‑modem GSM messaging with a modern API. Campaigns, alerts, OTPs, and 2‑way messaging for on‑prem or edge deployments." />
+  <meta name="description" content="MuxoSMS: multi-modem GSM messaging with a modern API. Campaigns, alerts, OTPs, and 2-way messaging for on-prem or edge deployments." />
   <meta name="theme-color" content="#0b1220" />
-  <meta property="og:title" content="MuxoSMS — Modern GSM Messaging" />
-  <meta property="og:description" content="API-first SMS at the edge. Multi‑modem. High‑throughput. Built for teams." />
-  <meta property="og:type" content="website" />
+  <!-- Site favicon -->
+  <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/Skunkworks-Digital/muxo/6db5dfeab70b914cb590f3f37d4c01788e0f0f8e/2.svg" />
   <style>
-    /* =====================
-       Design Tokens
-       ===================== */
     :root{
-      --bg:#0b1220;
-      --surface:#0f172a;
-      --surface-2:#0b1326;
-      --glass:rgba(13,22,40,.5);
-      --ink:#e7f0ff;
-      --ink-dim:#b8c6e3;
-      --muted:#92a3c7;
-      --teal:#14b8a6;      /* teal M */
-      --cyan:#06b6d4;      /* cyan SMS */
-      --accent:#ef4444;    /* red accent */
-      --brand:#3b82f6;     /* blue */
-      --ok:#10b981;
-      --warn:#f59e0b;
-      --radius-xl:22px;
-      --radius-lg:16px;
-      --radius:12px;
-      --radius-sm:10px;
-      --shadow:0 20px 60px rgba(0,0,0,.35);
-      --speed:280ms;
-      --grid-max:1200px;
+      --bg:#0b1220;--surface:#0f172a;--ink:#e7f0ff;--ink-dim:#b8c6e3;--teal:#14b8a6;--cyan:#06b6d4;--accent:#ef4444;--brand:#3b82f6;--radius:12px;--speed:280ms;--shadow:0 20px 60px rgba(0,0,0,.35)
     }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;overflow-x:hidden}
+    header{position:sticky;top:0;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);z-index:50}
+    nav{display:flex;justify-content:space-between;align-items:center;padding:1rem;animation:fadeDown 1s ease}
+    nav a{color:var(--ink-dim);margin:0 .5rem;text-decoration:none;transition:color var(--speed)}
+    nav a:hover{color:var(--ink)}
+    .btn{background:linear-gradient(90deg,var(--teal),var(--cyan));padding:.6rem 1rem;border-radius:var(--radius);color:#06242a;font-weight:700;display:inline-block;transition:transform var(--speed)}
+    .btn:hover{transform:scale(1.05)}
 
-    *,*::before,*::after{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; background:radial-gradient(1200px 800px at 10% -10%, #10213b 0%, #0b1220 40%),
-               radial-gradient(1000px 700px at 110% 10%, #0b1e2e 0%, #0b1220 45%);
-      color:var(--ink); font:16px/1.6 Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      overflow-x:hidden;
+    .hero{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem 1rem;text-align:center;position:relative;overflow:hidden}
+    .hero h1{font-size:clamp(2rem,6vw,3.5rem);line-height:1.2;animation:fadeUp 1s ease forwards}
+    .hero p{color:var(--ink-dim);max-width:40rem;margin:1rem auto;animation:fadeUp 1.5s ease forwards}
+    .hero .cta{margin-top:1rem;display:flex;flex-wrap:wrap;gap:1rem;justify-content:center;animation:fadeUp 2s ease forwards}
+
+    .hero-canvas{position:absolute;top:0;right:-6vw;width:120%;height:100%;z-index:-1}
+    .hero-canvas.overlay{mix-blend-mode:screen;opacity:.35;pointer-events:none}
+
+    section{padding:3rem 1rem}
+    h2{text-align:center;font-size:clamp(1.5rem,5vw,2.5rem);margin-bottom:1rem;animation:fadeUp 1s ease}
+    .grid{display:grid;gap:1rem}
+    .features{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+    .card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);padding:1.5rem;border-radius:var(--radius);box-shadow:var(--shadow);transition:transform var(--speed), box-shadow var(--speed)}
+    .card:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 30px 80px rgba(0,0,0,.5)}
+    .pricing{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+    .price{font-size:2rem;font-weight:900;margin:.5rem 0}
+    .carousel{overflow:hidden;position:relative}
+    .carousel-track{display:flex;transition:transform 0.5s ease}
+    .carousel .card{min-width:80%;margin:0 auto}
+    footer{background:rgba(15,23,42,.9);text-align:center;padding:1rem;color:var(--ink-dim);animation:fadeUp 1s ease}
+
+    .tilt{transform-style:preserve-3d;transform:perspective(1000px) rotateX(0) rotateY(0);transition:transform 120ms ease-out}
+    .switch{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:12px;color:var(--ink-dim)}
+    .toggle{inline-size:52px;block-size:30px;border-radius:999px;background:rgba(255,255,255,.1);position:relative;cursor:pointer}
+    .toggle input{position:absolute;inset:0;opacity:0}
+    .toggle i{position:absolute;top:4px;left:4px;width:22px;height:22px;background:#fff;border-radius:999px;transition:left var(--speed)}
+    .toggle input:checked + i{left:26px}
+
+    @media(min-width:768px){
+      .hero{flex-direction:row;text-align:left}
+      .hero-content{flex:1;padding-right:2rem;z-index:1}
+      .hero-visual{flex:1;display:flex;justify-content:center;z-index:1}
     }
-
-    /* Floating gradient orbs */
-    .orb{ position:absolute; filter:blur(60px); opacity:.35; pointer-events:none; mix-blend-mode:screen; }
-    .orb.one{ background:radial-gradient(closest-corner at 30% 30%, var(--teal), transparent 60%); width:460px; height:460px; left:-120px; top:-100px; }
-    .orb.two{ background:radial-gradient(closest-corner at 70% 30%, var(--cyan), transparent 60%); width:520px; height:520px; right:-180px; top:-140px; }
-    .orb.three{ background:radial-gradient(closest-corner at 50% 70%, var(--accent), transparent 60%); width:380px; height:380px; left:20%; bottom:-120px; }
-
-    /* =====================
-       Header / Nav
-       ===================== */
-    .nav{
-      position:sticky; top:0; z-index:50; backdrop-filter:saturate(1.3) blur(10px);
-      background:linear-gradient(180deg, rgba(14,23,42,.85), rgba(14,23,42,.35));
-      border-bottom:1px solid rgba(255,255,255,.06);
-    }
-    .nav-wrap{ max-width:var(--grid-max); margin:0 auto; padding:12px 18px; display:flex; align-items:center; gap:18px; }
-    .logo{ display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--ink); font-weight:800; letter-spacing:.3px; }
-    .logo-mark{ width:32px; height:32px; border-radius:10px; background:conic-gradient(from 140deg, var(--teal), var(--cyan), #60a5fa 60%, var(--accent)); box-shadow:0 8px 24px rgba(6,182,212,.35); transform:rotate(8deg); }
-    .nav-links{ margin-left:auto; display:flex; gap:18px; flex-wrap:wrap; }
-    .nav-links a{ color:var(--ink-dim); text-decoration:none; padding:8px 12px; border-radius:10px; transition:color var(--speed), background var(--speed), transform var(--speed); }
-    .nav-links a:hover{ background:rgba(255,255,255,.06); color:var(--ink); transform:translateY(-2px); }
-    .btn{ padding:10px 14px; border-radius:12px; background:linear-gradient(180deg, #1f3a72, #16294e); color:#e8f2ff; text-decoration:none; border:1px solid rgba(255,255,255,.1); box-shadow:var(--shadow); transition:transform var(--speed), box-shadow var(--speed); }
-    .btn:hover{ transform:translateY(-3px); box-shadow:0 16px 36px rgba(17,24,39,.45); }
-    .btn-accent{ background:linear-gradient(90deg, var(--teal), var(--cyan)); color:#07202a; font-weight:700; border:none; }
-
-    /* =====================
-       Hero
-       ===================== */
-    .hero{ position:relative; isolation:isolate; overflow:hidden; }
-    .hero-canvas{ position:absolute; inset:0; z-index:0; }
-    .hero-inner{
-      max-width:var(--grid-max); margin:0 auto; padding:84px 18px 54px; position:relative; z-index:1;
-      display:grid; gap:28px; grid-template-columns:1.2fr .8fr; align-items:center;
-    }
-    @media (max-width:980px){ .hero-inner{ grid-template-columns:1fr; padding-top:64px; } }
-    .kicker{ color:var(--teal); font-weight:700; letter-spacing:.2em; text-transform:uppercase; font-size:.8rem; }
-    h1{ margin:10px 0 12px; font-size:clamp(2rem, 4.6vw, 3.6rem); line-height:1.08; letter-spacing:-.02em; }
-    .sub{ color:var(--ink-dim); max-width:62ch; }
-    .cta-row{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:10px; }
-    .tick{ display:flex; align-items:center; gap:8px; color:#9ec3ff; font-size:.95rem; }
-    .tick svg{ opacity:.8 }
-
-    .phone-demo{ perspective:1200px; display:grid; place-items:center; }
-    .device{
-      width:min(380px, 86%); aspect-ratio:9/19; border-radius:36px; background:linear-gradient(180deg, #0c1426, #0e1628);
-      border:1px solid rgba(255,255,255,.1); box-shadow:0 24px 80px rgba(0,0,0,.45), inset 0 0 0 8px #0a1322;
-      transform:rotateY(-16deg) rotateX(6deg); transform-style:preserve-3d; transition:transform var(--speed);
-    }
-    .device:hover{ transform:rotateY(-6deg) rotateX(2deg) translateY(-4px); }
-    .device-screen{ position:relative; inset:0; border-radius:28px; overflow:hidden; height:100%; display:flex; flex-direction:column; }
-    .statusbar{ height:30px; background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); }
-    .messages{ flex:1; display:flex; flex-direction:column; gap:10px; padding:16px; background:radial-gradient(800px 400px at 50% 120%, #0b1628, #0b1220); }
-    .bubble{ max-width:78%; padding:10px 14px; border-radius:16px; font-size:.95rem; box-shadow:0 8px 24px rgba(0,0,0,.35); animation:pop .45s var(--i) both; }
-    .bubble.me{ margin-left:auto; background:linear-gradient(180deg, #133a4c, #0e2836); border:1px solid rgba(6,182,212,.25) }
-    .bubble.you{ background:linear-gradient(180deg, #1d2a45, #141f34); border:1px solid rgba(59,130,246,.25) }
-    @keyframes pop{ from{ transform:translateY(12px) scale(.98); opacity:0 } to{ transform:none; opacity:1 } }
-    .composer{ display:flex; align-items:center; gap:8px; padding:10px; background:rgba(255,255,255,.04); border-top:1px solid rgba(255,255,255,.08) }
-    .composer input{ flex:1; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); color:var(--ink); }
-    .composer button{ padding:10px 12px; border-radius:12px; border:0; background:linear-gradient(90deg, var(--teal), var(--cyan)); color:#06242a; font-weight:700; box-shadow:0 8px 20px rgba(6,182,212,.35); }
-
-    /* =====================
-       Sections
-       ===================== */
-    section{ position:relative; z-index:1; padding:64px 18px; }
-    .grid{ max-width:var(--grid-max); margin:0 auto; }
-
-    .band{
-      display:grid; gap:18px; grid-template-columns:repeat(3, 1fr);
-    }
-    @media (max-width:980px){ .band{ grid-template-columns:1fr } }
-    .card{ background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.08); padding:20px; border-radius:var(--radius-lg); box-shadow:var(--shadow); position:relative; overflow:hidden; }
-    .card:hover::after{ opacity:.7; transform:translateX(40%); }
-    .card::after{ content:""; position:absolute; inset:auto -40% -40% auto; width:120%; height:140%; background:radial-gradient(closest-side, rgba(6,182,212,.15), transparent 70%); opacity:.35; transition:opacity var(--speed), transform 1.2s; }
-    .tilt{ transform-style:preserve-3d; transform:perspective(1000px) rotateX(0) rotateY(0); transition:transform 120ms ease-out; }
-
-    .feature h3{ margin:0 0 8px; font-size:1.25rem }
-    .muted{ color:var(--ink-dim) }
-
-    /* Counters */
-    .stats{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-top:16px; }
-    @media (max-width:980px){ .stats{ grid-template-columns:1fr 1fr } }
-    .stat{ background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); border-radius:16px; padding:18px; text-align:center }
-    .stat .num{ font-size:1.8rem; font-weight:900; letter-spacing:-.02em; }
-    .stat .lbl{ color:var(--muted); font-size:.92rem }
-
-    /* Architecture */
-    .arch{ display:grid; grid-template-columns:1.2fr .8fr; gap:24px; align-items:center }
-    @media (max-width:980px){ .arch{ grid-template-columns:1fr } }
-    .arch canvas{ width:100%; height:auto; }
-
-    /* Pricing */
-    .pricing{ display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; align-items:stretch; margin-top:18px; }
-    @media (max-width:980px){ .pricing{ grid-template-columns:1fr } }
-    .price-card{ position:relative; overflow:hidden; }
-    .badge{ position:absolute; top:12px; right:12px; padding:6px 10px; border-radius:999px; background:linear-gradient(90deg, var(--teal), var(--cyan)); color:#05222a; font-weight:800; font-size:.78rem }
-    .price{ font-size:2.4rem; font-weight:900; letter-spacing:-.02em; }
-    .switch{ display:flex; align-items:center; gap:10px; justify-content:center; margin-bottom:12px; color:var(--ink-dim) }
-    .toggle{ inline-size:52px; block-size:30px; border-radius:999px; background:rgba(255,255,255,.1); position:relative; cursor:pointer }
-    .toggle input{ position:absolute; inset:0; opacity:0 }
-    .toggle i{ position:absolute; top:4px; left:4px; width:22px; height:22px; background:#fff; border-radius:999px; transition:left var(--speed) }
-    .toggle input:checked + i{ left:26px; }
-
-    /* Carousel */
-    .carousel{ display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center }
-    .track{ display:flex; gap:16px; overflow:auto; scroll-snap-type:x mandatory; padding-bottom:8px }
-    .slide{ scroll-snap-align:center; min-width:min(460px, 85vw); }
-
-    /* FAQ */
-    details{ background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:12px 16px; }
-    summary{ cursor:pointer; font-weight:700 }
-
-    /* Footer */
-    footer{ border-top:1px solid rgba(255,255,255,.06); background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01)); }
-    .foot{ display:grid; grid-template-columns:1fr auto; gap:18px; align-items:center; }
-    @media (max-width:980px){ .foot{ grid-template-columns:1fr } }
-    .progress{ position:fixed; inset:0 0 auto 0; height:3px; background:linear-gradient(90deg, var(--teal), var(--cyan)); transform-origin:left; transform:scaleX(0); z-index:60 }
-
-    /* Reduced motion accessibility */
-    @media (prefers-reduced-motion: reduce){
-      .device,.card,.tilt,.nav-links a,.btn{ transition:none !important }
-      .bubble{ animation:none }
-    }
+    @keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
   </style>
 </head>
 <body>
-  <div class="progress" id="progress"></div>
-  <div class="orb one"></div>
-  <div class="orb two"></div>
-  <div class="orb three"></div>
-
-  <header class="nav">
-    <div class="nav-wrap">
-      <a class="logo" href="#top" aria-label="MuxoSMS home">
-        <span class="logo-mark" aria-hidden="true"></span>
-        <span>Muxo<span style="color:var(--cyan)">SMS</span></span>
-      </a>
-      <nav class="nav-links">
+  <header>
+    <nav>
+      <div class="logo"><img src="https://raw.githubusercontent.com/Skunkworks-Digital/muxo/6db5dfeab70b914cb590f3f37d4c01788e0f0f8e/2.svg" alt="MuxoSMS Logo" style="height:32px;vertical-align:middle"> Muxo<span style="color:var(--cyan)">SMS</span></div>
+      <div class="links">
         <a href="#features">Features</a>
-        <a href="#arch">Architecture</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
-        <a class="btn btn-accent" href="#demo">Try Live Demo</a>
-      </nav>
-    </div>
+        <a href="#demo" data-remote-demo>Demo</a>
+        <a href="#reference">Reference Architecture</a>
+      </div>
+    </nav>
   </header>
 
-  <main id="top">
-    <!-- ===================== HERO ===================== -->
-    <section class="hero" aria-labelledby="hero-title">
-      <canvas class="hero-canvas" id="scene" aria-hidden="true"></canvas>
-      <div class="hero-inner grid">
-        <div>
-          <div class="kicker">Edge‑ready GSM + API</div>
-          <h1 id="hero-title">Send millions of messages, <span style="background:linear-gradient(90deg,var(--teal),var(--cyan)); -webkit-background-clip:text; background-clip:text; color:transparent">without the cloud</span>.</h1>
-          <p class="sub">MuxoSMS is a modern messaging stack that uses your own GSM modems and SIMs for blazing‑fast, compliant SMS. Orchestrate multiple devices, schedule campaigns, receive replies, and integrate via a friendly REST API.</p>
-          <div class="cta-row">
-            <a class="btn btn-accent" href="#pricing">See Pricing</a>
-            <a class="btn" href="#features">Explore Features</a>
-            <span class="tick"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> 2‑way inbox • OTP • Alerts • Bulk</span>
-          </div>
-          <div class="stats">
-            <div class="stat"><div class="num" data-count="1200000">0</div><div class="lbl">Msgs / month per rack</div></div>
-            <div class="stat"><div class="num" data-count="8">0</div><div class="lbl">Modems orchestrated</div></div>
-            <div class="stat"><div class="num" data-count="99.95">0</div><div class="lbl">Delivery uptime</div></div>
-            <div class="stat"><div class="num" data-count="3">0</div><div class="lbl">Minute setup</div></div>
-          </div>
-        </div>
+  <section class="hero">
+    <canvas class="hero-canvas" id="scene" aria-hidden="true" data-engine="three.js r157" width="1154" height="568"></canvas>
+    <canvas class="hero-canvas overlay" id="scene2d" aria-hidden="true" width="1203" height="710"></canvas>
 
-        <div class="phone-demo" id="demo">
-          <div class="device tilt">
-            <div class="device-screen">
-              <div class="statusbar"></div>
-              <div class="messages">
-                <div class="bubble you" style="--i:.02s">Welcome to <b>MuxoSMS</b> 👋</div>
-                <div class="bubble me" style="--i:.16s">Triggering OTP…</div>
-                <div class="bubble you" style="--i:.30s">Your code is <b>431-992</b> (valid 5 min)</div>
-                <div class="bubble me" style="--i:.44s">Broadcast confirmation ✅</div>
-                <div class="bubble you" style="--i:.58s">Delivered to 12,483 recipients</div>
-              </div>
-              <div class="composer">
-                <input type="text" placeholder="Type a message…" aria-label="Compose message" />
-                <button type="button">Send</button>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div class="hero-content">
+      <h1>Send millions of messages <span style="background:linear-gradient(90deg,var(--teal),var(--cyan));-webkit-background-clip:text;color:transparent">without the cloud</span></h1>
+      <p>MuxoSMS is a modern messaging stack that uses your own GSM modems and SIMs for blazing-fast, compliant SMS. Orchestrate multiple devices, schedule campaigns, receive replies, and integrate via a friendly REST API.</p>
+      <div class="cta">
+        <a class="btn" href="#pricing">See Pricing</a>
+        <a class="btn" style="background:var(--accent);color:white" href="#features">Explore Features</a>
+        <a class="btn" href="#demo">Try Live Demo</a>
       </div>
-    </section>
-
-    <!-- ===================== FEATURES ===================== -->
-    <section id="features" class="grid" aria-labelledby="features-title">
-      <h2 id="features-title">Built for scale. Loved by engineers.</h2>
-      <p class="muted">Self‑hosted or on‑prem with rackable GSM modems. Queueing, retries, DLR tracking, content templates, and a clean API. Everything you need to ship messages with confidence.</p>
-
-      <div class="band" style="margin-top:18px">
-        <article class="card feature tilt">
-          <h3>Multi‑Modem Orchestration</h3>
-          <p class="muted">Balance load across 2–8 devices. Automatic failover, SIM rotation, and throughput shaping to avoid carrier throttling.</p>
-        </article>
-        <article class="card feature tilt">
-          <h3>Campaigns & Journeys</h3>
-          <p class="muted">Schedule, segment, and personalize with merge fields. Create drip sequences and re‑tries on non‑delivery.</p>
-        </article>
-        <article class="card feature tilt">
-          <h3>Two‑Way Inbox</h3>
-          <p class="muted">Capture replies, auto‑route to webhooks, and build chat‑like experiences or support flows with tags and quick actions.</p>
-        </article>
-        <article class="card feature tilt">
-          <h3>Developer‑Friendly API</h3>
-          <p class="muted">Simple REST + Webhooks. Keys, roles, and audit log included. SDK snippets for cURL, Node, and Python.</p>
-        </article>
-        <article class="card feature tilt">
-          <h3>Observability</h3>
-          <p class="muted">Real‑time DLRs, queue depth, modem health, and per‑SIM analytics. Export events to your SIEM.</p>
-        </article>
-        <article class="card feature tilt">
-          <h3>Edge‑Ready</h3>
-          <p class="muted">Run in shops, warehouses, mines, and clinics. No external gateways required; keep data sovereign.</p>
-        </article>
+      <div class="cta">
+        <a class="btn" href="#campaign">Plan a Campaign in Seconds</a>
       </div>
-    </section>
+    </div>
+    <div class="hero-visual">
+      <img src="/device-mock.png" alt="MuxoSMS Device Mockup" style="max-width:220px;border-radius:30px;box-shadow:0 12px 40px rgba(0,0,0,.45);animation:fadeUp 2s ease"/>
+    </div>
+  </section>
 
-    <!-- ===================== INTERACTIVE ESTIMATOR ===================== -->
-    <section class="grid" aria-labelledby="estimator-title">
-      <div class="card" style="display:grid; gap:18px; grid-template-columns:1.1fr .9fr; align-items:center">
-        <div>
-          <h2 id="estimator-title">Plan a campaign in seconds</h2>
-          <p class="muted">Use the estimator to gauge segment counts and a rough cost before you hit send. (Assumes GSM‑7 encoding @ 160 chars/segment.)</p>
-          <form id="estimator" style="display:grid; gap:12px; margin-top:10px">
-            <label>Audience size <input type="number" id="aud" value="5000" min="1" style="width:140px"></label>
-            <label>Message length <input type="number" id="len" value="120" min="1" style="width:140px"></label>
-            <label>Est. cost per SMS (currency) <input type="number" id="cost" value="0.20" step="0.01" style="width:140px"></label>
-            <div class="tick"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Unicode or long messages may use multiple segments.</div>
-          </form>
-        </div>
-        <div class="card" style="background:linear-gradient(180deg,#0f1d33,#0c172a)">
-          <h3>Estimate</h3>
-          <div class="stats" style="grid-template-columns:1fr 1fr">
-            <div class="stat"><div class="num" id="seg">0</div><div class="lbl">Segments / message</div></div>
-            <div class="stat"><div class="num" id="tot">0</div><div class="lbl">Total messages</div></div>
-            <div class="stat"><div class="num" id="bill">0</div><div class="lbl">Estimated spend</div></div>
-            <div class="stat"><div class="num" id="hrs">0</div><div class="lbl">ETA @ 20 msg/sec</div></div>
-          </div>
-        </div>
-      </div>
-    </section>
+  <section id="reference">
+    <h2>Reference Architecture</h2>
+    <p style="text-align:center;max-width:40rem;margin:0 auto;color:var(--ink-dim)">Our platform connects the <strong>UI</strong>, <strong>API</strong>, and <strong>Messaging Core</strong> seamlessly with connected GSM modems. This architecture ensures scalability, reliability, and real-time communication.</p>
+    <div style="display:flex;justify-content:center;margin-top:2rem">
+      <img src="https://raw.githubusercontent.com/Skunkworks-Digital/muxo/main/reference-architecture.png" alt="MuxoSMS Reference Architecture" style="max-width:90%;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.4)">
+    </div>
+  </section>
 
-    <!-- ===================== ARCHITECTURE (3D LINES) ===================== -->
-    <section id="arch" class="grid" aria-labelledby="arch-title">
-      <div class="arch card">
-        <div>
-          <h2 id="arch-title">Reference architecture</h2>
-          <p class="muted">A modular flow from UI → API → Messaging Core → GSM Modems. Queue workers pull jobs, apply templates, send via AT commands, and push delivery receipts back to API consumers.</p>
-          <ul>
-            <li><b>UI:</b> Dashboard + Campaign Manager</li>
-            <li><b>API Layer:</b> REST + Webhooks + Auth</li>
-            <li><b>Messaging Core:</b> Queue, Router, Templates</li>
-            <li><b>Device I/O:</b> AT control, Health checks, SIM rotation</li>
-          </ul>
-          <p class="muted">Deploy on‑prem, Docker, or edge box; export metrics via Prometheus.</p>
-        </div>
-        <div>
-          <canvas id="archCanvas" width="640" height="420" aria-label="Animated data flow diagram"></canvas>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===================== PRICING ===================== -->
-    <section id="pricing" class="grid" aria-labelledby="pricing-title">
-      <div class="switch"><span>Monthly</span>
-        <label class="toggle" aria-label="Toggle annual billing"><input type="checkbox" id="billToggle"><i></i></label>
-        <span>Annual <span style="color:var(--ok); font-weight:700">(save 15%)</span></span>
-      </div>
-      <h2 id="pricing-title">Simple, predictable pricing</h2>
-      <div class="pricing">
-        <div class="card price-card tilt">
-          <div class="badge">Starter</div>
-          <h3>Basic</h3>
-          <div class="price" data-m="0" data-y="0">Free</div>
-          <p class="muted">Single modem • 2 users • 5k msgs/month</p>
-          <ul>
-            <li>Core dashboard & API</li>
-            <li>1 web hook endpoint</li>
-            <li>Email support</li>
-          </ul>
-          <a class="btn" href="#demo">Start free</a>
-        </div>
-        <div class="card price-card tilt" style="border-color:rgba(6,182,212,.4)">
-          <div class="badge">Most Popular</div>
-          <h3>Professional</h3>
-          <div class="price" data-m="39" data-y="33">$39</div>
-          <p class="muted">Up to 4 modems • 10 users • 100k msgs/month</p>
-          <ul>
-            <li>Journeys, tags, templates</li>
-            <li>DLR tracking & analytics</li>
-            <li>Priority support</li>
-          </ul>
-          <a class="btn btn-accent" href="#demo">Go Pro</a>
-        </div>
-        <div class="card price-card tilt">
-          <div class="badge">Scale</div>
-          <h3>Enterprise</h3>
-          <div class="price" data-m="149" data-y="126">$149</div>
-          <p class="muted">8 modems • SSO • SIEM export • unlimited msgs*</p>
-          <ul>
-            <li>HA orchestrator + replicas</li>
-            <li>Audit log, RBAC, IP allow‑list</li>
-            <li>24/7 support SLA</li>
-          </ul>
-          <a class="btn" href="#contact">Contact sales</a>
-        </div>
-      </div>
-      <p class="muted" style="margin-top:10px">*Subject to carrier/FUP constraints and your installed hardware throughput.</p>
-    </section>
-
-    <!-- ===================== SOCIAL PROOF ===================== -->
-    <section class="grid" aria-labelledby="proof-title">
-      <div class="carousel">
-        <h2 id="proof-title">Teams ship with MuxoSMS</h2>
-        <div class="controls"><button class="btn" id="prev">‹</button> <button class="btn" id="next">›</button></div>
-        <div class="track" id="track">
-          <div class="slide card">
-            <p>“We replaced an expensive SMS gateway with MuxoSMS on‑prem. Faster, cheaper, and fully in our control.”</p>
-            <div class="tick">CTO, Logistics</div>
-          </div>
-          <div class="slide card">
-            <p>“OTP latency dropped from 12s to ~2s. DLR visibility means our support team actually trusts the numbers.”</p>
-            <div class="tick">Head of Product, Fintech</div>
-          </div>
-          <div class="slide card">
-            <p>“We run 6 modems in rotation with SIM pools. The orchestrator just handles it.”</p>
-            <div class="tick">IT Manager, Retail</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===================== FAQ ===================== -->
-    <section id="faq" class="grid" aria-labelledby="faq-title">
-      <h2 id="faq-title">Frequently asked</h2>
-      <div class="band">
-        <details>
-          <summary>Can I run this offline?</summary>
-          <p>Yes. MuxoSMS is designed for air‑gapped or low‑connectivity environments. All messaging flows through your attached modems and SIMs.</p>
-        </details>
-        <details>
-          <summary>What modems are supported?</summary>
-          <p>Class 1/2 GSM modems that expose serial/USB with AT command support (eg. Huawei, Quectel, Waveshare). Multi‑modem USB hubs are supported.</p>
-        </details>
-        <details>
-          <summary>Do you provide an API?</summary>
-          <p>Yes. Create/send/list messages, manage contacts, inbound webhooks, and delivery receipts. Keys, RBAC, and audit trail included.</p>
-        </details>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <section class="grid foot">
-      <p class="muted">© <span id="year"></span> MuxoSMS — Built by Skunkworks.</p>
-      <form class="composer" style="background:transparent; border-top:0" onsubmit="event.preventDefault(); alert('Subscribed!')">
-        <input type="email" placeholder="Get product updates" required>
-        <button class="btn btn-accent" type="submit">Subscribe</button>
-      </form>
-    </section>
-  </footer>
-
-  <!-- ============ Scripts ============ -->
   <script src="https://unpkg.com/three@0.157.0/build/three.min.js"></script>
   <script>
-    // Scroll progress bar
-    const progress = document.getElementById('progress');
-    document.addEventListener('scroll', () => {
-      const h = document.documentElement;
-      const scrolled = (h.scrollTop) / (h.scrollHeight - h.clientHeight);
-      progress.style.transform = `scaleX(${scrolled})`;
-    });
+    // Run after DOM is ready to avoid race conditions
+    document.addEventListener('DOMContentLoaded', () => {
+      // year
+      const yearEl = document.getElementById('year');
+      if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-    // Animated counters when visible
-    const counters = [...document.querySelectorAll('[data-count]')];
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if(e.isIntersecting){
-          const el = e.target; const to = parseFloat(el.dataset.count); let cur=0; let start;
-          const dur = 1200 + Math.random()*800;
-          const isInt = Number.isInteger(to);
-          const step = t => {
-            if(!start) start = t; const p = Math.min(1, (t-start)/dur);
-            cur = to * (0.5 - Math.cos(p*Math.PI)/2);
-            el.textContent = isInt ? Math.round(cur).toLocaleString() : cur.toFixed(2);
-            if(p<1) requestAnimationFrame(step);
-          };
-          requestAnimationFrame(step);
-          io.unobserve(el);
+      // auto-sliding carousel (guards for nulls)
+      const track = document.getElementById('carouselTrack');
+      if (track) {
+        let index = 0;
+        function slide(){
+          const cards = track.children; if (!cards.length) return;
+          index = (index + 1) % cards.length;
+          track.style.transform = `translateX(-${index*100}%)`;
         }
-      });
-    }, { threshold:.6 });
-    counters.forEach(c => io.observe(c));
-
-    // Tilt effect for interactive cards/devices
-    function attachTilt(el){
-      const r = 8; // deg
-      el.addEventListener('mousemove', (e) => {
-        const b = el.getBoundingClientRect();
-        const x = (e.clientX - b.left) / b.width; const y = (e.clientY - b.top) / b.height;
-        const rx = (y-.5) * -r; const ry = (x-.5) * r;
-        el.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg)`;
-      });
-      el.addEventListener('mouseleave', () => {
-        el.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
-      });
-    }
-    document.querySelectorAll('.tilt').forEach(attachTilt);
-
-    // Estimator
-    const aud = document.getElementById('aud');
-    const len = document.getElementById('len');
-    const cost = document.getElementById('cost');
-    const seg = document.getElementById('seg');
-    const tot = document.getElementById('tot');
-    const bill = document.getElementById('bill');
-    const hrs = document.getElementById('hrs');
-    function updateEst(){
-      const a = Math.max(1, +aud.value||0);
-      const l = Math.max(1, +len.value||0);
-      const c = Math.max(0, +cost.value||0);
-      const s = Math.ceil(l/160);
-      const t = a * s;
-      const b = t * c;
-      const eta = t / 20 / 60; // at 20 msg/sec
-      seg.textContent = s;
-      tot.textContent = t.toLocaleString();
-      bill.textContent = b.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
-      hrs.textContent = `${eta<1? Math.round(eta*60)+' min' : eta.toFixed(1)+' hrs'}`;
-    }
-    [aud,len,cost].forEach(i => i.addEventListener('input', updateEst));
-    updateEst();
-
-    // Pricing toggle
-    const toggle = document.getElementById('billToggle');
-    const prices = [...document.querySelectorAll('.price')];
-    function setBilling(){
-      const yearly = toggle.checked;
-      prices.forEach(p => {
-        const m = p.dataset.m; const y = p.dataset.y;
-        if(m===undefined) return; // Free plan
-        p.textContent = yearly ? `$${y}` : `$${m}`;
-      });
-    }
-    toggle.addEventListener('change', setBilling); setBilling();
-
-    // Carousel controls
-    const track = document.getElementById('track');
-    document.getElementById('prev').onclick = () => track.scrollBy({left:-480, behavior:'smooth'});
-    document.getElementById('next').onclick = () => track.scrollBy({left:480, behavior:'smooth'});
-
-    // Year
-    document.getElementById('year').textContent = new Date().getFullYear();
-
-    // ================= 3D HERO (THREE.JS) =================
-    ;(function initThree(){
-      const canvas = document.getElementById('scene');
-      if(!window.THREE || !canvas) return;
-      const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 100);
-      camera.position.set(0, 0, 8);
-
-      // Resize
-      function fit(){
-        const w = canvas.clientWidth || innerWidth;
-        const h = canvas.clientHeight || (innerHeight*0.72);
-        renderer.setSize(w, h, false);
-        camera.aspect = w/h; camera.updateProjectionMatrix();
+        let timer = setInterval(slide, 4000);
+        const carousel = document.querySelector('.carousel');
+        const pause = ()=> clearInterval(timer);
+        const resume = ()=> { clearInterval(timer); timer = setInterval(slide, 4000); };
+        if (carousel){
+          carousel.addEventListener('mouseenter', pause);
+          carousel.addEventListener('mouseleave', resume);
+          carousel.addEventListener('focusin', pause);
+          carousel.addEventListener('focusout', resume);
+        }
       }
-      addEventListener('resize', fit); fit();
 
-      // Glow gradient background plane
-      const geo = new THREE.PlaneGeometry(24, 12);
-      const mat = new THREE.MeshBasicMaterial({ color:0x0b1220, transparent:true, opacity:0.0 });
-      const plane = new THREE.Mesh(geo, mat); plane.position.z = -4; scene.add(plane);
-
-      // Message "bubbles" as sprites
-      const sprites = new THREE.Group(); scene.add(sprites);
-      const tex = new THREE.Texture(createBubbleTexture()); tex.needsUpdate = true;
-      const material = new THREE.SpriteMaterial({ map: tex, color: 0xffffff, transparent:true, opacity:.9 });
-      const colors = [0x14b8a6,0x06b6d4,0x60a5fa,0xef4444,0xffffff];
-      for(let i=0;i<180;i++){
-        const m = new THREE.Sprite(material.clone());
-        m.scale.setScalar( (Math.random()*0.8 + 0.4) );
-        m.material.color = new THREE.Color(colors[i % colors.length]);
-        reset(m, true);
-        sprites.add(m);
-      }
-      function reset(s, first){
-        const r = 6; const a = Math.random()*Math.PI*2; const y = (Math.random()*2-1)*2.5;
-        s.position.set(Math.cos(a)*r, y, Math.sin(a)*r);
-        s.userData.speed = 0.002 + Math.random()*0.004;
-        s.userData.rad = r; s.userData.angle = a; s.userData.dir = Math.random()>0.5?1:-1;
-        if(!first) s.scale.setScalar( (Math.random()*0.8 + 0.4) );
-      }
-      function createBubbleTexture(){
-        const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
-        g.clearRect(0,0,128,128);
-        // rounded rect
-        g.fillStyle = '#ffffff';
-        const r = 26; const w=88, h=58; const x=20, y=28;
-        g.globalAlpha = .18; // glow
-        g.shadowColor = '#00ffff'; g.shadowBlur = 22; g.fillRect(x,y,w,h);
-        g.globalAlpha = .9; g.shadowBlur=0;
-        roundRect(g,x,y,w,h,r);
-        g.fillStyle = '#ffffff'; g.fill();
-        // tail
-        g.beginPath(); g.moveTo(x+16,y+h); g.lineTo(x+28,y+h); g.lineTo(x+20,y+h+12); g.closePath(); g.fill();
-        return c;
-      }
-      function roundRect(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
-
-      // Lights (subtle point lights for color tints)
-      const light1 = new THREE.PointLight(0x06b6d4, .6, 20); light1.position.set(5, 2, 4); scene.add(light1);
-      const light2 = new THREE.PointLight(0x14b8a6, .5, 20); light2.position.set(-6, -2, 3); scene.add(light2);
-
-      // Animate
-      let t = 0; const clk = new THREE.Clock();
-      function tick(){ requestAnimationFrame(tick); const dt = clk.getDelta(); t += dt;
-        sprites.children.forEach(s=>{
-          s.userData.angle += s.userData.speed * s.userData.dir;
-          s.position.x = Math.cos(s.userData.angle) * s.userData.rad;
-          s.position.z = Math.sin(s.userData.angle) * s.userData.rad;
-          s.position.y += Math.sin(t*0.6 + s.userData.angle)*0.002;
+      // Tilt effect for cards
+      document.querySelectorAll('.tilt').forEach(el=>{
+        const r=8;
+        el.addEventListener('mousemove',e=>{
+          const b=el.getBoundingClientRect();
+          const x=(e.clientX-b.left)/b.width; const y=(e.clientY-b.top)/b.height;
+          const rx=(y-.5)*-r; const ry=(x-.5)*r;
+          el.style.transform=`perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg)`
         });
-        renderer.render(scene, camera);
-      }
-      tick();
-    })();
+        el.addEventListener('mouseleave',()=>{el.style.transform='perspective(1000px) rotateX(0) rotateY(0)'});
+      });
 
-    // Architecture animated lines on 2D canvas (lightweight)
-    ;(function archLines(){
-      const c = document.getElementById('archCanvas'); if(!c) return; const ctx = c.getContext('2d');
-      const nodes = [
-        {x:80, y:60, w:160, h:64, label:'UI'},
-        {x:80, y:170, w:160, h:64, label:'API'},
-        {x:320, y:60, w:240, h:64, label:'Messaging\nCore'},
-        {x:320, y:170, w:240, h:64, label:'Device I/O\n(AT + Health)'}
-      ];
-      function drawBox(n){
-        const r = 14; const {x,y,w,h} = n;
-        ctx.fillStyle = 'rgba(255,255,255,0.06)';
-        roundRect(ctx,x,y,w,h,r); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.stroke();
-        ctx.fillStyle = '#b8c6e3'; ctx.font = '14px Inter, sans-serif'; ctx.textBaseline='middle';
-        n.label.split('\n').forEach((line,i)=> ctx.fillText(line, x+16, y+h/2 + (i-0.5)*18));
-      }
-      function roundRect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
+      // Pricing toggle
+      const toggle = document.getElementById('billToggle');
+      const prices = [...document.querySelectorAll('.price')];
+      function setBilling(){ const yearly = toggle && toggle.checked; prices.forEach(p=>{ const m=p.dataset.m; const y=p.dataset.y; if(m===undefined) return; p.textContent = yearly?`$${y}`:`$${m}`; }); }
+      if (toggle) toggle.addEventListener('change', setBilling); setBilling();
 
-      const paths = [
-        {from:0, to:1, color:'#06b6d4'},
-        {from:1, to:2, color:'#60a5fa'},
-        {from:2, to:3, color:'#14b8a6'},
-      ];
-      function drawPath(p, t){
-        const a = nodes[p.from]; const b = nodes[p.to];
-        const x1 = a.x + a.w; const y1 = a.y + a.h/2;
-        const x2 = b.x; const y2 = b.y + b.h/2;
-        const mx = (x1 + x2)/2;
-        ctx.lineWidth = 2; ctx.strokeStyle = p.color + 'AA';
-        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.bezierCurveTo(mx, y1, mx, y2, x2, y2); ctx.stroke();
-        // traveling dot
-        const tt = (Math.sin(t)+1)/2; // 0-1
-        const px = cubicBezier(x1,mx,mx,x2, tt);
-        const py = cubicBezier(y1,y1,y2,y2, tt);
-        ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2); ctx.fill();
-      }
-      function cubicBezier(p0,p1,p2,p3,t){ const cX = 3*(p1-p0), bX = 3*(p2-p1)-cX, aX = p3-p0-cX-bX; return aX*t*t*t + bX*t*t + cX*t + p0; }
+      // THREE.js hero particles (WebGL)
+      (function initThree(){
+        const canvas = document.getElementById('scene');
+        if(!window.THREE || !canvas) return;
+        const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(55, 2, 0.1, 100); camera.position.set(0,0,8);
+        function fit(){ const rect = canvas.getBoundingClientRect(); const w = rect.width||window.innerWidth; const h = rect.height||300; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); }
+        window.addEventListener('resize', fit); fit();
+        const group = new THREE.Group(); scene.add(group);
+        const tex = new THREE.Texture(createBubbleTexture()); tex.needsUpdate = true;
+        const colors = [0x14b8a6,0x06b6d4,0x60a5fa,0xef4444,0xffffff];
+        const count = Math.min(140, Math.floor((window.innerWidth||800)/6));
+        for(let i=0;i<count;i++){ const mat=new THREE.SpriteMaterial({map:tex,transparent:true,opacity:.9,color:colors[i%colors.length]}); const s=new THREE.Sprite(mat); s.scale.setScalar(Math.random()*0.8+0.4); reset(s,true); group.add(s); }
+        function reset(s,first){ const r=6; const a=Math.random()*Math.PI*2; const y=(Math.random()*2-1)*2.5; s.position.set(Math.cos(a)*r,y,Math.sin(a)*r); s.userData={speed:0.002+Math.random()*0.004,rad:r,angle:a,dir:Math.random()>0.5?1:-1}; if(!first) s.scale.setScalar(Math.random()*0.8+0.4); }
+        function createBubbleTexture(){ const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); if(!g) return c; g.clearRect(0,0,128,128); g.fillStyle = '#fff'; const r = 26; const w=88,h=58; const x=20,y=28; g.globalAlpha=.18; g.shadowColor='#00ffff'; g.shadowBlur=22; g.fillRect(x,y,w,h); g.globalAlpha=.9; g.shadowBlur=0; roundRect(g,x,y,w,h,r); g.fill(); g.beginPath(); g.moveTo(x+16,y+h); g.lineTo(x+28,y+h); g.lineTo(x+20,y+h+12); g.closePath(); g.fill(); return c; }
+        function roundRect(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+        const l1=new THREE.PointLight(0x06b6d4,.6,20); l1.position.set(5,2,4); scene.add(l1);
+        const l2=new THREE.PointLight(0x14b8a6,.5,20); l2.position.set(-6,-2,3); scene.add(l2);
+        const clk=new THREE.Clock();
+        function tick(){ requestAnimationFrame(tick); const t=clk.getDelta(); group.children.forEach(s=>{ s.userData.angle += s.userData.speed * s.userData.dir; s.position.x=Math.cos(s.userData.angle)*s.userData.rad; s.position.z=Math.sin(s.userData.angle)*s.userData.rad; s.position.y += Math.sin(performance.now()*0.0006 + s.userData.angle)*0.002; }); renderer.render(scene,camera); }
+        tick();
+      })();
 
-      function loop(){ ctx.clearRect(0,0,c.width,c.height); nodes.forEach(drawBox); const tt = performance.now()/700; paths.forEach(p=>drawPath(p,tt)); requestAnimationFrame(loop); }
-      loop();
-    })();
+      // Lightweight 2D particles on a *separate* canvas (avoids WebGL/2D context conflict)
+      (function initOverlay2D(){
+        const canvas2 = document.getElementById('scene2d'); if(!canvas2) return; const ctx = canvas2.getContext('2d'); if(!ctx) return;
+        const hero = document.querySelector('.hero');
+        function size(){ const rect = hero.getBoundingClientRect(); canvas2.width = rect.width * devicePixelRatio; canvas2.height = rect.height * devicePixelRatio; canvas2.style.width = rect.width + 'px'; canvas2.style.height = rect.height + 'px'; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+        size(); window.addEventListener('resize', size);
+        const particles = Array.from({length:60}, ()=>({ x: Math.random()*canvas2.width, y: Math.random()*canvas2.height, r: Math.random()*3+1, dx: (Math.random()-0.5)*1, dy: (Math.random()-0.5)*1 }));
+        function animate(){ ctx.clearRect(0,0,canvas2.width,canvas2.height); for(const p of particles){ ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle='rgba(20,184,166,0.7)'; ctx.fill(); p.x+=p.dx; p.y+=p.dy; if(p.x<0||p.x>canvas2.width) p.dx*=-1; if(p.y<0||p.y>canvas2.height) p.dy*=-1; } requestAnimationFrame(animate); }
+        animate();
+      })();
+    });
   </script>
 </body>
 </html>
