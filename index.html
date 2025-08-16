@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MuxoSMS</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>MuxoSMS</h1>
+    <nav>
+      <a href="#backend">Backend</a>
+      <a href="#ui">UI</a>
+      <a href="#development">Development</a>
+      <a href="#backups">Backups</a>
+    </nav>
+  </header>
+  <main>
+    <section id="backend">
+      <h2>Backend</h2>
+      <p>Python 3.11 + FastAPI</p>
+      <pre><code>uvicorn backend.main:app</code></pre>
+    </section>
+    <section id="ui">
+      <h2>UI</h2>
+      <p>Vite + React + TypeScript</p>
+      <pre><code>npm run dev</code></pre>
+    </section>
+    <section id="development">
+      <h2>Development</h2>
+      <p>Install pre-commit hooks:</p>
+      <pre><code>pre-commit install</code></pre>
+      <p>Run lint checks:</p>
+      <pre><code>pre-commit run --files &lt;files&gt;
+npm run lint --prefix ui</code></pre>
+    </section>
+    <section id="backups">
+      <h2>Backups</h2>
+      <p>
+        Nightly backups of the SQLite database are stored in the
+        <code>backups/</code> directory with a timestamped filename.
+      </p>
+      <ol>
+        <li>Stop the application.</li>
+        <li>
+          Replace <code>muxo.db</code> with the desired backup file:
+          <pre><code>cp backups/muxo-&lt;timestamp&gt;.db muxo.db</code></pre>
+        </li>
+        <li>Start the application again.</li>
+      </ol>
+      <p>
+        Old messages older than 90 days and audit records older than 365 days
+        are purged during the nightly job.
+      </p>
+    </section>
+  </main>
+  <footer>
+    <p>&copy; <span id="year"></span> MuxoSMS</p>
+    <button id="back-to-top">Back to top</button>
+  </footer>
+  <script src="script.js"></script>
+</body>
+</html>
