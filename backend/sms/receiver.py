@@ -8,11 +8,12 @@ import time
 
 import serial
 
+from backend.db import SessionLocal
+from backend.models import Contact, Message
 from backend.sms.pdu import parse_cds, parse_pdu
 from backend.sms.sender import send_sms
 from backend.sms.store import INBOX
-from backend.db import SessionLocal
-from backend.models import Contact, Message
+from backend.utils import normalize_msisdn, notify_status
 
 INFO_TEMPLATE = "Thanks for your message."
 
@@ -22,13 +23,18 @@ def _handle_inbound(
 ) -> None:
     db = SessionLocal()
     try:
-        contact = db.query(Contact).filter(Contact.msisdn == msisdn).first()
+        try:
+            norm = normalize_msisdn(msisdn)
+        except ValueError as exc:
+            logging.warning("invalid inbound number %s: %s", msisdn, exc)
+            return
+        contact = db.query(Contact).filter(Contact.msisdn == norm).first()
         if not contact:
-            contact = Contact(msisdn=msisdn)
+            contact = Contact(msisdn=norm)
             db.add(contact)
             db.commit()
             db.refresh(contact)
-        INBOX.append({"msisdn": msisdn, "text": text, "device_id": device_id})
+        INBOX.append({"msisdn": norm, "text": text, "device_id": device_id})
         keyword = text.strip().upper()
         if keyword == "STOP":
             contact.opt_out = True
@@ -55,6 +61,14 @@ def _handle_dlr(ref: str, status: int) -> None:
             else:
                 msg.status = "unknown"
             db.commit()
+            notify_status(
+                {
+                    "id": msg.id,
+                    "msisdn": msg.contact.msisdn,
+                    "status": msg.status,
+                    "error_code": msg.error_code,
+                }
+            )
     finally:
         db.close()
 
