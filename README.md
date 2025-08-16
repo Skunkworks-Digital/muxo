@@ -12,6 +12,10 @@ Monorepo for experimental SMS gateway with FastAPI backend and React UI.
 - Vite + React + TypeScript
 - From `ui` directory run: `npm run dev`
 
+## Website
+
+A static project website is available in the `website/` directory. Open `website/index.html` in a browser for an overview and usage instructions.
+
 ## Development
 
 Install pre-commit hooks:
