@@ -11,6 +11,9 @@ dependencies = [
     "apscheduler",
     "python-jose[cryptography]",
     "passlib[bcrypt]",
+    "phonenumbers",
+    "requests",
+    "watchdog",
 ]
 
 [tool.black]

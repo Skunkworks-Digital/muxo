@@ -18,25 +18,19 @@ from backend.auth import (
     get_password_hash,
     require_role,
 )
+from backend.campaign_watcher import start_campaign_watcher
 from backend.db import SessionLocal, get_session
 from backend.devices.serial_port import probe_modems
 from backend.maintenance import nightly_backup
-from backend.models import (
-    Audit,
-    Campaign,
-    Contact,
-    Device,
-    ListMember,
-    Message,
-    User,
-)
+from backend.models import Audit, Campaign, Contact, Device, ListMember, Message, User
 from backend.sms.receiver import start_receiver
 from backend.sms.sender import send_sms
 from backend.sms.store import INBOX
-
+from backend.utils import normalize_msisdn, notify_status
 
 app = FastAPI()
 RECEIVERS: list = []
+WATCHERS: list = []
 SCHEDULER = BackgroundScheduler()
 
 
@@ -62,6 +56,7 @@ def _startup() -> None:
     for dev in probe_modems():
         if dev.get("sim_ready"):
             RECEIVERS.append(start_receiver(dev["port"]))
+    WATCHERS.append(start_campaign_watcher(SCHEDULER))
 
 
 @app.get("/healthz")
@@ -108,14 +103,18 @@ def api_send(
     device = db.query(Device).filter(Device.port == message.device_id).first()
     if not device:
         raise HTTPException(status_code=400, detail="device not found")
-    contact = db.query(Contact).filter(Contact.msisdn == message.msisdn).first()
+    try:
+        msisdn = normalize_msisdn(message.msisdn)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    contact = db.query(Contact).filter(Contact.msisdn == msisdn).first()
     if not contact:
-        contact = Contact(msisdn=message.msisdn)
+        contact = Contact(msisdn=msisdn)
         db.add(contact)
         db.commit()
         db.refresh(contact)
     try:
-        refs = send_sms(message.msisdn, message.text, message.device_id)
+        refs = send_sms(msisdn, message.text, message.device_id)
     except Exception as exc:  # pragma: no cover - surface error
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     msg = Message(
@@ -128,6 +127,13 @@ def api_send(
     db.add(msg)
     db.commit()
     db.refresh(msg)
+    notify_status(
+        {
+            "id": msg.id,
+            "msisdn": msisdn,
+            "status": msg.status,
+        }
+    )
     return {"id": msg.id, "refs": refs}
 
 
@@ -175,7 +181,11 @@ def create_contact(
     db: Session = Depends(get_session),
     user: User = Depends(require_role("ops", "admin")),
 ):
-    obj = Contact(msisdn=contact.msisdn, name=contact.name)
+    try:
+        msisdn = normalize_msisdn(contact.msisdn)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    obj = Contact(msisdn=msisdn, name=contact.name)
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -205,7 +215,10 @@ def update_contact(
     obj = db.get(Contact, contact_id)
     if not obj:
         raise HTTPException(status_code=404, detail="not found")
-    obj.msisdn = contact.msisdn
+    try:
+        obj.msisdn = normalize_msisdn(contact.msisdn)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     obj.name = contact.name
     db.commit()
     db.refresh(obj)
@@ -358,9 +371,7 @@ def send_campaign(campaign_id: int) -> None:
         contacts = (
             db.query(Contact)
             .join(ListMember, ListMember.contact_id == Contact.id)
-            .filter(
-                ListMember.list_id == campaign.list_id, Contact.opt_out.is_(False)
-            )
+            .filter(ListMember.list_id == campaign.list_id, Contact.opt_out.is_(False))
             .all()
         )
         devices = db.query(Device).filter(Device.active.is_(True)).all()
@@ -383,7 +394,9 @@ def send_campaign(campaign_id: int) -> None:
                         target += timedelta(days=1)
                     time.sleep((target - now).total_seconds())
             device = next(cycle)
-            wait = max(0, last_sent[device.id] + 1.0 / campaign.rate_limit - time.time())
+            wait = max(
+                0, last_sent[device.id] + 1.0 / campaign.rate_limit - time.time()
+            )
             if wait:
                 time.sleep(wait)
             refs = send_sms(contact.msisdn, campaign.template, device.port)
@@ -397,6 +410,13 @@ def send_campaign(campaign_id: int) -> None:
             )
             db.add(msg)
             db.commit()
+            notify_status(
+                {
+                    "id": msg.id,
+                    "msisdn": contact.msisdn,
+                    "status": msg.status,
+                }
+            )
             last_sent[device.id] = time.time()
     finally:
         db.close()
@@ -426,7 +446,9 @@ def create_campaign(
     db.commit()
     db.refresh(obj)
     log_audit(db, "campaigns", obj.id, "create")
-    SCHEDULER.add_job(send_campaign, "date", run_date=campaign.start_time, args=[obj.id])
+    SCHEDULER.add_job(
+        send_campaign, "date", run_date=campaign.start_time, args=[obj.id]
+    )
     total = db.query(ListMember).filter(ListMember.list_id == obj.list_id).count()
     return CampaignOut(
         id=obj.id,
@@ -492,4 +514,3 @@ def list_audit(
 @app.get("/api/inbox")
 def api_inbox(user: User = Depends(get_current_user)) -> list[dict]:
     return INBOX
-
