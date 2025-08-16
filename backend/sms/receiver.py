@@ -8,9 +8,11 @@ import time
 
 import serial
 
-from backend.sms.pdu import parse_pdu
+from backend.sms.pdu import parse_cds, parse_pdu
 from backend.sms.sender import send_sms
-from backend.sms.store import CONTACTS, INBOX
+from backend.sms.store import INBOX
+from backend.db import SessionLocal
+from backend.models import Contact, Message
 
 INFO_TEMPLATE = "Thanks for your message."
 
@@ -18,16 +20,43 @@ INFO_TEMPLATE = "Thanks for your message."
 def _handle_inbound(
     msisdn: str, text: str, device_id: str, port: serial.Serial
 ) -> None:
-    INBOX.append({"msisdn": msisdn, "text": text, "device_id": device_id})
-    keyword = text.strip().upper()
-    if keyword == "STOP":
-        CONTACTS.setdefault(msisdn, {})["opt_out"] = True
-    elif keyword == "INFO":
-        if not CONTACTS.get(msisdn, {}).get("opt_out"):
+    db = SessionLocal()
+    try:
+        contact = db.query(Contact).filter(Contact.msisdn == msisdn).first()
+        if not contact:
+            contact = Contact(msisdn=msisdn)
+            db.add(contact)
+            db.commit()
+            db.refresh(contact)
+        INBOX.append({"msisdn": msisdn, "text": text, "device_id": device_id})
+        keyword = text.strip().upper()
+        if keyword == "STOP":
+            contact.opt_out = True
+            db.commit()
+        elif keyword == "INFO" and not contact.opt_out:
             try:
                 send_sms(msisdn, INFO_TEMPLATE, device_id, port=port)
             except Exception as exc:  # pragma: no cover - hardware dependent
                 logging.warning("auto-reply failed: %s", exc)
+    finally:
+        db.close()
+
+
+def _handle_dlr(ref: str, status: int) -> None:
+    db = SessionLocal()
+    try:
+        msg = db.query(Message).filter(Message.ref == ref).first()
+        if msg:
+            if status < 0x20:
+                msg.status = "delivered"
+            elif status >= 0x40:
+                msg.status = "failed"
+                msg.error_code = f"{status:02X}"
+            else:
+                msg.status = "unknown"
+            db.commit()
+    finally:
+        db.close()
 
 
 def _reader(device_id: str, baud: int = 115200) -> None:
@@ -47,6 +76,13 @@ def _reader(device_id: str, baud: int = 115200) -> None:
                             _handle_inbound(msisdn, text, device_id, port)
                         except Exception as exc:  # pragma: no cover - best effort
                             logging.warning("parse error: %s", exc)
+                    elif line.startswith("+CDS:"):
+                        pdu_line = port.readline().decode(errors="ignore").strip()
+                        try:
+                            ref, status = parse_cds(pdu_line)
+                            _handle_dlr(ref, status)
+                        except Exception as exc:  # pragma: no cover - best effort
+                            logging.warning("dlr parse error: %s", exc)
                     elif not line:
                         # Poll fallback
                         port.write(b"AT+CMGL=4\r")

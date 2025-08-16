@@ -162,3 +162,22 @@ def parse_pdu(pdu: str) -> Tuple[str, str]:
         else:
             text = ud_bytes.decode("utf-16-be")
     return msisdn, text
+
+
+def parse_cds(pdu: str) -> Tuple[str, int]:
+    """Parse a delivery report PDU returning (reference, status)."""
+    i = 0
+    smsc_len = int(pdu[i : i + 2], 16)
+    i += 2 + smsc_len * 2
+    i += 2  # first octet
+    ref = pdu[i : i + 2]
+    i += 2
+    addr_len = int(pdu[i : i + 2], 16)
+    i += 2
+    i += 2  # TOA
+    addr_field_len = addr_len + (addr_len % 2)
+    i += addr_field_len
+    i += 14  # SCTS
+    i += 14  # discharge time
+    status = int(pdu[i : i + 2], 16)
+    return ref.lstrip("0"), status
