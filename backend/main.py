@@ -11,14 +11,24 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from backend.auth import (
+    authenticate_user,
+    create_access_token,
+    get_current_user,
+    get_password_hash,
+    require_role,
+)
 from backend.db import SessionLocal, get_session
 from backend.devices.serial_port import probe_modems
+from backend.maintenance import nightly_backup
 from backend.models import (
+    Audit,
     Campaign,
     Contact,
     Device,
     ListMember,
     Message,
+    User,
 )
 from backend.sms.receiver import start_receiver
 from backend.sms.sender import send_sms
@@ -30,9 +40,25 @@ RECEIVERS: list = []
 SCHEDULER = BackgroundScheduler()
 
 
+def log_audit(db: Session, table: str, record_id: int, action: str) -> None:
+    db.add(Audit(table_name=table, record_id=record_id, action=action))
+    db.commit()
+
+
 @app.on_event("startup")
 def _startup() -> None:
     SCHEDULER.start()
+    db = SessionLocal()
+    try:
+        if not db.query(User).first():
+            user = User(
+                username="admin", password_hash=get_password_hash("admin"), role="admin"
+            )
+            db.add(user)
+            db.commit()
+    finally:
+        db.close()
+    SCHEDULER.add_job(nightly_backup, "cron", hour=0)
     for dev in probe_modems():
         if dev.get("sim_ready"):
             RECEIVERS.append(start_receiver(dev["port"]))
@@ -44,8 +70,27 @@ def healthz() -> dict[str, str]:
 
 
 @app.get("/api/devices/probe")
-def api_probe() -> list[dict]:
+def api_probe(user: User = Depends(get_current_user)) -> list[dict]:
     return probe_modems()
+
+
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+@app.post("/api/login", response_model=TokenOut)
+def api_login(data: LoginIn, db: Session = Depends(get_session)) -> TokenOut:
+    user = authenticate_user(db, data.username, data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="invalid credentials")
+    token = create_access_token({"sub": user.username, "role": user.role})
+    return TokenOut(access_token=token)
 
 
 class MessageIn(BaseModel):
@@ -55,7 +100,11 @@ class MessageIn(BaseModel):
 
 
 @app.post("/api/messages")
-def api_send(message: MessageIn, db: Session = Depends(get_session)) -> dict[str, object]:
+def api_send(
+    message: MessageIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(require_role("ops", "admin")),
+) -> dict[str, object]:
     device = db.query(Device).filter(Device.port == message.device_id).first()
     if not device:
         raise HTTPException(status_code=400, detail="device not found")
@@ -83,7 +132,11 @@ def api_send(message: MessageIn, db: Session = Depends(get_session)) -> dict[str
 
 
 @app.get("/api/messages/{message_id}")
-def api_message(message_id: int, db: Session = Depends(get_session)) -> dict:
+def api_message(
+    message_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> dict:
     msg = db.get(Message, message_id)
     if not msg:
         raise HTTPException(status_code=404, detail="not found")
@@ -109,21 +162,33 @@ class ContactOut(ContactIn):
 
 
 @app.get("/api/contacts", response_model=list[ContactOut])
-def list_contacts(db: Session = Depends(get_session)):
+def list_contacts(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
     return db.query(Contact).all()
 
 
 @app.post("/api/contacts", response_model=ContactOut)
-def create_contact(contact: ContactIn, db: Session = Depends(get_session)):
+def create_contact(
+    contact: ContactIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(require_role("ops", "admin")),
+):
     obj = Contact(msisdn=contact.msisdn, name=contact.name)
     db.add(obj)
     db.commit()
     db.refresh(obj)
+    log_audit(db, "contacts", obj.id, "create")
     return obj
 
 
 @app.get("/api/contacts/{contact_id}", response_model=ContactOut)
-def get_contact(contact_id: int, db: Session = Depends(get_session)):
+def get_contact(
+    contact_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
     obj = db.get(Contact, contact_id)
     if not obj:
         raise HTTPException(status_code=404, detail="not found")
@@ -131,7 +196,12 @@ def get_contact(contact_id: int, db: Session = Depends(get_session)):
 
 
 @app.put("/api/contacts/{contact_id}", response_model=ContactOut)
-def update_contact(contact_id: int, contact: ContactIn, db: Session = Depends(get_session)):
+def update_contact(
+    contact_id: int,
+    contact: ContactIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(require_role("ops", "admin")),
+):
     obj = db.get(Contact, contact_id)
     if not obj:
         raise HTTPException(status_code=404, detail="not found")
@@ -139,16 +209,23 @@ def update_contact(contact_id: int, contact: ContactIn, db: Session = Depends(ge
     obj.name = contact.name
     db.commit()
     db.refresh(obj)
+    log_audit(db, "contacts", obj.id, "update")
     return obj
 
 
 @app.delete("/api/contacts/{contact_id}")
-def delete_contact(contact_id: int, db: Session = Depends(get_session)):
+def delete_contact(
+    contact_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(require_role("admin")),
+):
     obj = db.get(Contact, contact_id)
     if not obj:
         raise HTTPException(status_code=404, detail="not found")
+    record_id = obj.id
     db.delete(obj)
     db.commit()
+    log_audit(db, "contacts", record_id, "delete")
     return {"status": "deleted"}
 
 
@@ -166,21 +243,33 @@ class DeviceOut(DeviceIn):
 
 
 @app.get("/api/devices", response_model=list[DeviceOut])
-def list_devices(db: Session = Depends(get_session)):
+def list_devices(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
     return db.query(Device).all()
 
 
 @app.post("/api/devices", response_model=DeviceOut)
-def create_device(device: DeviceIn, db: Session = Depends(get_session)):
+def create_device(
+    device: DeviceIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(require_role("ops", "admin")),
+):
     obj = Device(**device.dict())
     db.add(obj)
     db.commit()
     db.refresh(obj)
+    log_audit(db, "devices", obj.id, "create")
     return obj
 
 
 @app.get("/api/devices/{device_id}", response_model=DeviceOut)
-def get_device(device_id: int, db: Session = Depends(get_session)):
+def get_device(
+    device_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
     obj = db.get(Device, device_id)
     if not obj:
         raise HTTPException(status_code=404, detail="not found")
@@ -188,7 +277,12 @@ def get_device(device_id: int, db: Session = Depends(get_session)):
 
 
 @app.put("/api/devices/{device_id}", response_model=DeviceOut)
-def update_device(device_id: int, device: DeviceIn, db: Session = Depends(get_session)):
+def update_device(
+    device_id: int,
+    device: DeviceIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(require_role("ops", "admin")),
+):
     obj = db.get(Device, device_id)
     if not obj:
         raise HTTPException(status_code=404, detail="not found")
@@ -197,16 +291,23 @@ def update_device(device_id: int, device: DeviceIn, db: Session = Depends(get_se
     obj.active = device.active
     db.commit()
     db.refresh(obj)
+    log_audit(db, "devices", obj.id, "update")
     return obj
 
 
 @app.delete("/api/devices/{device_id}")
-def delete_device(device_id: int, db: Session = Depends(get_session)):
+def delete_device(
+    device_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(require_role("admin")),
+):
     obj = db.get(Device, device_id)
     if not obj:
         raise HTTPException(status_code=404, detail="not found")
+    record_id = obj.id
     db.delete(obj)
     db.commit()
+    log_audit(db, "devices", record_id, "delete")
     return {"status": "deleted"}
 
 
@@ -232,6 +333,17 @@ class CampaignOut(BaseModel):
     sent: int
     delivered: int
     failed: int
+
+    class Config:
+        orm_mode = True
+
+
+class AuditOut(BaseModel):
+    id: int
+    table_name: str
+    record_id: int
+    action: str
+    timestamp: datetime
 
     class Config:
         orm_mode = True
@@ -291,7 +403,11 @@ def send_campaign(campaign_id: int) -> None:
 
 
 @app.post("/api/campaigns", response_model=CampaignOut)
-def create_campaign(campaign: CampaignIn, db: Session = Depends(get_session)):
+def create_campaign(
+    campaign: CampaignIn,
+    db: Session = Depends(get_session),
+    user: User = Depends(require_role("ops", "admin")),
+):
     window_start = window_end = None
     if campaign.window:
         parts = campaign.window.split("-")
@@ -309,6 +425,7 @@ def create_campaign(campaign: CampaignIn, db: Session = Depends(get_session)):
     db.add(obj)
     db.commit()
     db.refresh(obj)
+    log_audit(db, "campaigns", obj.id, "create")
     SCHEDULER.add_job(send_campaign, "date", run_date=campaign.start_time, args=[obj.id])
     total = db.query(ListMember).filter(ListMember.list_id == obj.list_id).count()
     return CampaignOut(
@@ -328,7 +445,11 @@ def create_campaign(campaign: CampaignIn, db: Session = Depends(get_session)):
 
 
 @app.get("/api/campaigns/{campaign_id}", response_model=CampaignOut)
-def get_campaign(campaign_id: int, db: Session = Depends(get_session)):
+def get_campaign(
+    campaign_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
     campaign = db.get(Campaign, campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="not found")
@@ -360,7 +481,15 @@ def get_campaign(campaign_id: int, db: Session = Depends(get_session)):
     )
 
 
+@app.get("/api/audit", response_model=list[AuditOut])
+def list_audit(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    return db.query(Audit).order_by(Audit.timestamp.desc()).all()
+
+
 @app.get("/api/inbox")
-def api_inbox() -> list[dict]:
+def api_inbox(user: User = Depends(get_current_user)) -> list[dict]:
     return INBOX
 
